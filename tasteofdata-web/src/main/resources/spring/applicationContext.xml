@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans  
+      http://www.springframework.org/schema/beans/spring-beans-3.0.xsd  
+      http://www.springframework.org/schema/context  
+      http://www.springframework.org/schema/context/spring-context.xsd  
+      http://www.springframework.org/schema/tx   
+      http://www.springframework.org/schema/tx/spring-tx-3.0.xsd  
+      http://www.springframework.org/schema/aop  
+      http://www.springframework.org/schema/aop/spring-aop-3.0.xsd  
+      http://www.springframework.org/schema/mvc  
+      http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd">
+
+	<bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath*:*.properties</value>
+				<value>classpath*:conf/*.properties</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- 动态数据源的父类,其中配置的参数为子数据库的default值 -->
+	<bean id="dataSource_config" class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		destroy-method="close" abstract="true">
+		<property name="driverClass" value="${jdbc.driverClassName}" />
+		<property name="jdbcUrl" value="${jdbc.write.url}" />
+		<property name="user" value="${jdbc.write.username}" />
+		<property name="password" value="${jdbc.write.password}" />
+		<property name="maxPoolSize" value="${jdbc.maxPoolSize}" />
+		<property name="minPoolSize" value="${jdbc.minPoolSize}" />
+		<property name="initialPoolSize" value="${jdbc.initialPoolSize}"/>
+		<property name="idleConnectionTestPeriod" value="${jdbc.idleConnectionTestPeriod}"/>
+		<property name="maxIdleTime" value="${jdbc.maxIdleTime}"/>
+	</bean>
+
+	<!-- 子数据源,只读数据源热read01,只需对url,user,password重新赋值 -->
+	<bean id="read01" destroy-method="close" parent="dataSource_config">
+		<property name="jdbcUrl">
+			<value>${jdbc.read01.url}</value>
+		</property>
+		<property name="user">
+			<value>${jdbc.read01.username}</value>
+		</property>
+		<property name="password">
+			<value>${jdbc.read01.password}</value>
+		</property>
+	</bean>
+
+	<!-- 子数据源,只读数据源热read02,只需对url,user,password重新赋值 -->
+	<bean id="read02" destroy-method="close" parent="dataSource_config">
+		<property name="jdbcUrl">
+			<value>${jdbc.read02.url}</value>
+		</property>
+		<property name="user">
+			<value>${jdbc.read02.username}</value>
+		</property>
+		<property name="password">
+			<value>${jdbc.read02.password}</value>
+		</property>
+	</bean>
+
+	<!-- 子数据源,写操作主库,无需修改配置参数 -->
+	<bean id="write" parent="dataSource_config">
+		<property name="jdbcUrl">
+			<value>${jdbc.write.url}</value>
+		</property>
+		<property name="user">
+			<value>${jdbc.write.username}</value>
+		</property>
+		<property name="password">
+			<value>${jdbc.write.password}</value>
+		</property>
+	</bean>
+
+	<!-- 读写管理(统一配置) -->
+	<bean id="dataSourceKey" class="com.tasteofdata.sys.core.db.datasource.DataSourceKey">
+		<property name="readKeyList">
+			<list value-type="java.lang.String">
+				<value>read01</value>
+				<value>read02</value>
+			</list>
+		</property>
+		<property name="writeKey">
+			<value>write</value>
+		</property>
+	</bean>
+
+	<!-- 动态数据源 -->
+	<bean id="dataSource" class="com.tasteofdata.sys.core.db.datasource.DynamicDataSource">
+		<property name="targetDataSources">
+			<map key-type="java.lang.String">
+				<entry key="write" value-ref="write" />
+				<entry key="read01" value-ref="read01" />
+				<entry key="read02" value-ref="read02" />
+			</map>
+		</property>
+		<property name="defaultTargetDataSource" ref="write" />
+		<property name="dataSourceKey" ref="dataSourceKey" />
+	</bean>
+	
+</beans>  
